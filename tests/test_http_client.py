@@ -101,3 +101,40 @@ def test_500_retries_but_408_hard_stops() -> None:
     client = _client(handler)
     with pytest.raises(HardStop, match="408"):
         client.get_json("https://example.com/api")
+
+
+def test_backoff_schedule_doubles_with_cap(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify exponential backoff with cap and one-sided positive jitter."""
+    sleeps: list[float] = []
+
+    def fake_sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+
+    # Eliminate jitter to make the schedule deterministic.
+    def zero_jitter(_a: float, _b: float) -> float:
+        return 0.0
+
+    monkeypatch.setattr("asset_crawler.http_client.time.sleep", fake_sleep)
+    monkeypatch.setattr("asset_crawler.http_client.random.uniform", zero_jitter)
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, text="slow down")
+
+    config = PoliteClientConfig(
+        user_agent="asset-crawler/test (+https://example.com)",
+        delay_min_s=0.0,
+        delay_max_s=0.0,
+        retry_initial_s=10.0,
+        retry_max_s=15.0,  # cap at 15 so we see the cap kick in
+        max_retries=3,
+    )
+    client = PoliteClient(config=config, transport=httpx.MockTransport(handler))
+    with pytest.raises(HardStop, match="retries exhausted"):
+        client.get_json("https://example.com/api")
+
+    # Schedule with retry_initial_s=10, doubling, capped at 15:
+    #   attempt 1: wait = min(10, 15) = 10
+    #   attempt 2: wait = min(20, 15) = 15
+    #   attempt 3: wait = min(15*2 capped to 15, 15) = 15
+    # Inter-request sleep skipped on first request, so 3 retry sleeps total.
+    assert sleeps == [10.0, 15.0, 15.0]

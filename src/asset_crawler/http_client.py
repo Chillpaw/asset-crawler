@@ -8,7 +8,6 @@ from typing import Any
 
 import httpx
 
-
 log = logging.getLogger(__name__)
 
 
@@ -51,7 +50,7 @@ class PoliteClient:
     def close(self) -> None:
         self._client.close()
 
-    def __enter__(self) -> "PoliteClient":
+    def __enter__(self) -> PoliteClient:
         return self
 
     def __exit__(self, *args: object) -> None:
@@ -78,9 +77,11 @@ class PoliteClient:
                     resp.status_code, url, attempt, self._cfg.max_retries, wait,
                 )
                 time.sleep(wait + random.uniform(0, wait * 0.1))
-                delay = delay * 2
+                delay = min(delay * 2, self._cfg.retry_max_s)
                 continue
-            raise HardStop(f"{resp.status_code} from {url} (retries exhausted or non-retryable)")
+            if resp.status_code in _RETRYABLE:
+                raise HardStop(f"{resp.status_code} from {url} after {attempt} retries (retries exhausted)")
+            raise HardStop(f"{resp.status_code} from {url} (non-retryable)")
 
     def _inter_request_sleep(self) -> None:
         if self._first_request:
