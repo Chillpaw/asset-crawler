@@ -2,17 +2,18 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from urllib.parse import urljoin
+from urllib.parse import urlsplit, urlunsplit
 from urllib.robotparser import RobotFileParser
 
 import httpx
-
 
 log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
 class RobotsCheck:
+    """Frozen wrapper around a parsed robots.txt result. The `parser` field is
+    internally mutable (stdlib type); treat it as read-only after construction."""
     source_url: str
     fetched_ok: bool
     parser: RobotFileParser
@@ -26,7 +27,8 @@ def fetch_robots(
 ) -> RobotsCheck:
     """Fetch and parse robots.txt. Missing or 5xx responses default to permissive
     (per-line industry convention) but the result records `fetched_ok=False`."""
-    robots_url = urljoin(base_url.rstrip("/") + "/", "robots.txt")
+    parts = urlsplit(base_url)
+    robots_url = urlunsplit((parts.scheme, parts.netloc, "/robots.txt", "", ""))
     parser = RobotFileParser()
     try:
         with httpx.Client(transport=transport, timeout=timeout_s) as client:
@@ -49,4 +51,7 @@ def fetch_robots(
 
 
 def is_allowed(robots: RobotsCheck, path: str, *, user_agent: str) -> bool:
+    """Per-path robots check. Inspect `robots.fetched_ok` separately for fetch
+    confidence — a False there means the answer reflects the permissive default,
+    not a real robots.txt."""
     return robots.parser.can_fetch(user_agent, path)
