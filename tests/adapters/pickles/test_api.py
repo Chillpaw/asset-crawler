@@ -4,12 +4,10 @@ import json
 from pathlib import Path
 
 import httpx
-import pytest
 
 from asset_crawler.adapters.pickles.api import SEARCH_URL, search_page
 from asset_crawler.adapters.pickles.filters import PicklesFilters
 from asset_crawler.http_client import PoliteClient, PoliteClientConfig
-
 
 FIXTURE = json.loads((Path(__file__).parent.parent.parent / "fixtures" / "pickles_search_page.json").read_text())
 

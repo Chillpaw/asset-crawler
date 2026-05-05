@@ -6,7 +6,6 @@ from typing import Any
 from asset_crawler.adapters.pickles.filters import PicklesFilters
 from asset_crawler.http_client import PoliteClient
 
-
 SEARCH_URL = (
     "https://www.pickles.com.au/api-website/buyer/ms-web-asset-search/v2/api/product/public/search"
 )
