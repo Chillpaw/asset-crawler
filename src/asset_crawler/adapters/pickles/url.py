@@ -4,8 +4,9 @@ from typing import Any
 
 _BASE = "https://www.pickles.com.au"
 
-# Known LoB → URL slug. Add entries here as new LoBs appear in the wild.
-# An unknown LoB returns None for source_url, which is non-load-bearing.
+# Known LoB → URL slug. salvage/industrial confirmed against fixtures;
+# trucks/cars/general are best-effort guesses to verify when those LoBs first
+# appear in real responses. An unknown LoB returns None (non-load-bearing).
 _LOB_URL_SLUG: dict[str, str] = {
     "salvage": "damaged-salvage",
     "industrial": "industrial",
@@ -31,4 +32,5 @@ def build_source_url(record: dict[str, Any]) -> str | None:
         return None
 
     kind = "vehicle" if item_lob in _VEHICLE_LOBS else "item"
+    # TODO: urllib.parse.quote(...) if Pickles ever emits IDs containing /, %, or spaces.
     return f"{_BASE}/{slug}/{kind}/itemid-{asset_id}/lotid-{lot_id}"
