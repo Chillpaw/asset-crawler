@@ -30,7 +30,6 @@ class PicklesAdapter:
     def iter_listings(self) -> Iterator[ListingRecord]:
         skip = 0
         prev_max_asset_id: str | None = None
-        empty_pages = 0
 
         while True:
             page = search_page(
@@ -42,13 +41,9 @@ class PicklesAdapter:
             )
 
             if not page.records:
-                empty_pages += 1
-                if empty_pages >= 1:
-                    return
-                continue
-            empty_pages = 0
+                return
 
-            page_asset_ids = [r.get("assetId", "") for r in page.records]
+            page_asset_ids = [r["assetId"] for r in page.records]
             min_id = min(page_asset_ids)
             max_id = max(page_asset_ids)
             if prev_max_asset_id is not None and min_id <= prev_max_asset_id:
