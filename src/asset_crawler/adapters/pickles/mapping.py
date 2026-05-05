@@ -14,7 +14,10 @@ SITE = "pickles"
 def api_record_to_listing(record: dict[str, Any]) -> ListingRecord | None:
     """Map a Pickles search-API record to a ListingRecord. Returns None for
     records the harness should skip (blank description). Validation other
-    than blank-description is the harness's responsibility."""
+    than blank-description is the harness's responsibility.
+
+    Note: `raw_payload` aliases the input `record` dict (no defensive copy).
+    Callers must not mutate `record` after this call."""
     description = (record.get("description") or "").strip()
     if not description:
         return None
