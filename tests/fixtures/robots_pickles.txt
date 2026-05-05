@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /api-website/buyer/
+Disallow: /cars/vehicle/
+
+User-agent: GoodBot
+Allow: /
