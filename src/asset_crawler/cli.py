@@ -105,3 +105,25 @@ def crawl_cmd(
         log.warning("ran with --acknowledge-robots-disallowed")
     if result.status != "ok":
         raise typer.Exit(code=1)
+
+
+@app.command("export")
+def export_cmd(
+    format: Annotated[str, typer.Option("--format", help="jsonl|csv")] = "jsonl",
+    out: Annotated[Path, typer.Option("--out")] = Path("./export.jsonl"),
+    db: Annotated[Path, typer.Option("--db")] = Path("./asset-crawler.db"),
+    since: Annotated[str | None, typer.Option("--since", help="YYYY-MM-DD")] = None,
+    site: Annotated[str | None, typer.Option("--site")] = None,
+    no_raw: Annotated[bool, typer.Option("--no-raw")] = False,
+) -> None:
+    """Export listings to JSONL or CSV."""
+    from asset_crawler.export import export_csv, export_jsonl
+
+    if format == "jsonl":
+        n = export_jsonl(db_path=db, out=out, since=since, site=site, no_raw=no_raw)
+    elif format == "csv":
+        n = export_csv(db_path=db, out=out, since=since, site=site)
+    else:
+        typer.echo(f"unknown format: {format}", err=True)
+        raise typer.Exit(code=2)
+    typer.echo(f"wrote {n} rows to {out}")
