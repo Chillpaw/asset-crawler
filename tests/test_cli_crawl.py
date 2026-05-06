@@ -95,3 +95,12 @@ def test_crawl_pickles_passes_filters(
 
     assert result.exit_code == 0, result.stdout
     assert seen_filters == ["(itemLoB eq 'industrial') and (productType/title eq 'Forklifts')"]
+
+
+def test_crawl_pickles_rejects_invalid_contact(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ASSET_CRAWLER_CONTACT", "not-a-url-or-email")
+    db = tmp_path / "out.db"
+    result = runner.invoke(app, ["crawl", "pickles", "--db", str(db)])
+    assert result.exit_code == 2

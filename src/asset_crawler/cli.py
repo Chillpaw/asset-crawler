@@ -10,7 +10,7 @@ import typer
 
 from asset_crawler import __version__
 from asset_crawler.adapters.pickles.filters import parse_cli
-from asset_crawler.config import build_user_agent, resolve_contact
+from asset_crawler.config import ContactNotResolved, build_user_agent, resolve_contact
 from asset_crawler.harness import CrawlerHarness
 from asset_crawler.http_client import PoliteClient, PoliteClientConfig
 from asset_crawler.robots import fetch_robots, is_allowed
@@ -57,14 +57,18 @@ def crawl_cmd(
         typer.echo(f"unknown site: {site}", err=True)
         raise typer.Exit(code=2)
 
-    contact = resolve_contact()
+    try:
+        contact = resolve_contact()
+    except ContactNotResolved as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(code=2) from e
     user_agent = build_user_agent(contact)
 
     transport = _build_transport()
     base_url = "https://www.pickles.com.au"
     api_path = "/api-website/buyer/ms-web-asset-search/v2/api/product/public/search"
     robots = fetch_robots(base_url, transport=transport)
-    allowed = is_allowed(robots, api_path, user_agent="asset-crawler")
+    allowed = is_allowed(robots, api_path, user_agent=user_agent)
     if not allowed and not acknowledge_robots_disallowed:
         typer.echo(
             "robots.txt disallows the target API path. Pass "
