@@ -158,3 +158,26 @@ def stats_cmd(
             typer.echo(f"  {d}: {n}")
     finally:
         conn.close()
+
+
+@app.command("runs")
+def runs_cmd(
+    db: Annotated[Path, typer.Option("--db")] = Path("./asset-crawler.db"),
+    site: Annotated[str | None, typer.Option("--site")] = None,
+    limit: Annotated[int, typer.Option("--limit")] = 20,
+) -> None:
+    """Show recent crawl runs."""
+    from asset_crawler.db import open_db
+    from asset_crawler.runs_repo import list_recent_runs
+
+    conn = open_db(db)
+    try:
+        rows = list_recent_runs(conn, site=site, limit=limit)
+        for r in rows:
+            typer.echo(
+                f"{r['started_at']}  {r['source_site']:10}  {r['status']:8}  "
+                f"new={r['items_new']:<6} dup={r['items_duplicate']:<6} "
+                f"skipped={r['items_skipped']:<4} run_id={r['run_id']}"
+            )
+    finally:
+        conn.close()
