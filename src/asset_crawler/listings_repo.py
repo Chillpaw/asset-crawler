@@ -16,7 +16,14 @@ def upsert_listing(
     Description and other fields are NEVER refreshed (first-write-wins).
     """
     iso = now.isoformat()
-    cur = conn.execute(
+    already_exists = (
+        conn.execute(
+            "SELECT 1 FROM listings WHERE source_site = ? AND source_listing_id = ?",
+            (record.source_site, record.source_listing_id),
+        ).fetchone()
+        is not None
+    )
+    conn.execute(
         """
         INSERT INTO listings (
             source_site, source_listing_id, description, source_categories,
@@ -36,13 +43,4 @@ def upsert_listing(
             iso,
         ),
     )
-    return cur.rowcount == 1 and cur.lastrowid is not None and _was_inserted(conn, record)
-
-
-def _was_inserted(conn: sqlite3.Connection, record: ListingRecord) -> bool:
-    row = conn.execute(
-        "SELECT first_seen_at = last_seen_at AS is_new FROM listings "
-        "WHERE source_site = ? AND source_listing_id = ?",
-        (record.source_site, record.source_listing_id),
-    ).fetchone()
-    return bool(row["is_new"])
+    return not already_exists
