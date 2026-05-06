@@ -28,23 +28,37 @@ def export_jsonl(
     *, db_path: Path, out: Path, since: str | None, site: str | None, no_raw: bool
 ) -> int:
     sql, args = _query(since, site)
-    conn = sqlite3.connect(str(db_path))
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     n = 0
     try:
         with out.open("w", encoding="utf-8") as f:
             for row in conn.execute(sql, args):
+                try:
+                    source_categories = json.loads(row["source_categories"])
+                except json.JSONDecodeError as exc:
+                    raise ValueError(
+                        f"malformed source_categories for listing "
+                        f"{row['source_site']}/{row['source_listing_id']}: {exc}"
+                    ) from exc
                 obj = {
                     "source_site": row["source_site"],
                     "source_listing_id": row["source_listing_id"],
                     "description": row["description"],
-                    "source_categories": json.loads(row["source_categories"]),
+                    "source_categories": source_categories,
                     "source_url": row["source_url"],
                     "first_seen_at": row["first_seen_at"],
                     "last_seen_at": row["last_seen_at"],
                 }
                 if not no_raw:
-                    obj["raw_payload"] = json.loads(row["raw_payload"])
+                    try:
+                        raw_payload = json.loads(row["raw_payload"])
+                    except json.JSONDecodeError as exc:
+                        raise ValueError(
+                            f"malformed raw_payload for listing "
+                            f"{row['source_site']}/{row['source_listing_id']}: {exc}"
+                        ) from exc
+                    obj["raw_payload"] = raw_payload
                 f.write(json.dumps(obj, ensure_ascii=False, sort_keys=True) + "\n")
                 n += 1
     finally:
@@ -56,7 +70,7 @@ def export_csv(
     *, db_path: Path, out: Path, since: str | None, site: str | None
 ) -> int:
     sql, args = _query(since, site)
-    conn = sqlite3.connect(str(db_path))
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     n = 0
     try:
