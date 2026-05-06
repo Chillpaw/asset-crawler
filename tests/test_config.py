@@ -31,6 +31,12 @@ def test_resolve_contact_rejects_invalid(monkeypatch: pytest.MonkeyPatch) -> Non
         resolve_contact()
 
 
+def test_resolve_contact_rejects_empty_string(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ASSET_CRAWLER_CONTACT", "")
+    with pytest.raises(ContactNotResolved):
+        resolve_contact()
+
+
 def test_build_user_agent() -> None:
     ua = build_user_agent("https://example.com/me")
     assert ua.startswith("asset-crawler/")
