@@ -127,3 +127,34 @@ def export_cmd(
         typer.echo(f"unknown format: {format}", err=True)
         raise typer.Exit(code=2)
     typer.echo(f"wrote {n} rows to {out}")
+
+
+@app.command("stats")
+def stats_cmd(
+    db: Annotated[Path, typer.Option("--db")] = Path("./asset-crawler.db"),
+) -> None:
+    """Print canonical coverage queries from the listings DB."""
+    from asset_crawler.db import open_db
+    from asset_crawler.stats import (
+        counts_by_lob,
+        counts_by_product_type,
+        counts_by_site,
+        recent_ingest_by_day,
+    )
+
+    conn = open_db(db)
+    try:
+        typer.echo("# By site")
+        for site, n in counts_by_site(conn):
+            typer.echo(f"  {site}: {n}")
+        typer.echo("\n# By LoB (top 20)")
+        for lob, n in counts_by_lob(conn):
+            typer.echo(f"  {lob}: {n}")
+        typer.echo("\n# By product type (top 20)")
+        for pt, n in counts_by_product_type(conn):
+            typer.echo(f"  {pt}: {n}")
+        typer.echo("\n# Recent ingest (last 14 days)")
+        for d, n in recent_ingest_by_day(conn):
+            typer.echo(f"  {d}: {n}")
+    finally:
+        conn.close()
