@@ -54,9 +54,6 @@ class CrawlerHarness:
             batch = 0
             for record in adapter.iter_listings():
                 items_seen += 1
-                if not record.description.strip():
-                    items_skipped += 1
-                    continue
                 is_new = upsert_listing(conn, record, self._now())
                 if is_new:
                     items_new += 1

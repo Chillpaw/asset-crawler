@@ -76,7 +76,7 @@ def test_run_dedupes_and_counts_duplicates(db_path: Path) -> None:
     assert result.counters.items_duplicate == 1
 
 
-def test_blank_description_skipped_at_validation(db_path: Path) -> None:
+def test_empty_source_categories_accepted(db_path: Path) -> None:
     adapter = FakeAdapter([_rec(1)])
     now = datetime(2026, 5, 4, 12, 0, tzinfo=UTC)
     harness = CrawlerHarness(db_path=db_path, now=lambda: now)
