@@ -36,3 +36,9 @@ def _or_clause(field_name: str, values: list[str]) -> str:
 def _escape(v: str) -> str:
     # OData v4: single-quote escaped by doubling.
     return v.replace("'", "''")
+
+
+def parse_cli(
+    lob: list[str] | None, product_type: list[str] | None
+) -> PicklesFilters:
+    return PicklesFilters(line_of_business=lob, product_types=product_type)
