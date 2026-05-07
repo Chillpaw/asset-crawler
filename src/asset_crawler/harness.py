@@ -30,11 +30,9 @@ class CrawlerHarness:
         *,
         db_path: Path | str,
         now: Callable[[], datetime] | None = None,
-        page_commit_interval: int = 50,
     ) -> None:
         self._db_path = db_path
         self._now = now or (lambda: datetime.now(UTC))
-        self._commit_interval = page_commit_interval
 
     def run(
         self, adapter: SiteAdapter, *, filter_spec: dict[str, Any] | None
@@ -51,24 +49,21 @@ class CrawlerHarness:
         error_message: str | None = None
 
         try:
-            batch = 0
             for record in adapter.iter_listings():
                 items_seen += 1
+                if not record.description.strip():
+                    items_skipped += 1
+                    continue
                 is_new = upsert_listing(conn, record, self._now())
                 if is_new:
                     items_new += 1
                 else:
                     items_duplicate += 1
-                batch += 1
-                if batch >= self._commit_interval:
-                    conn.commit()
-                    batch = 0
-            conn.commit()
         except Exception as e:
             status = "failed"
             error_message = f"{type(e).__name__}: {e}\n{traceback.format_exc(limit=3)}"
             log.exception("crawl failed")
-            conn.commit()  # persist partial progress
+            conn.commit()  # no-op in autocommit mode; kept for clarity
 
         counters = RunCounters(
             pages_fetched=0,
@@ -85,6 +80,5 @@ class CrawlerHarness:
             counters=counters,
             error_message=error_message,
         )
-        conn.commit()
         conn.close()
         return RunResult(run_id=run_id, status=status, counters=counters, error_message=error_message)

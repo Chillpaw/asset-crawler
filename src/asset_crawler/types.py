@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, ClassVar, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -32,6 +32,6 @@ class SiteAdapter(Protocol):
     """Adapters are pure: no DB, no rate limiting, no timestamps. Yield
     `ListingRecord` objects until exhausted; the harness owns everything else."""
 
-    site_name: str
+    site_name: ClassVar[str]
 
     def iter_listings(self) -> Iterator[ListingRecord]: ...

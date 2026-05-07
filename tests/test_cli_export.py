@@ -55,3 +55,12 @@ def test_export_csv_writes_file(runner: CliRunner, tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
     assert out.exists()
     assert "hello" in out.read_text()
+
+
+def test_export_missing_db_prints_clean_error(runner: CliRunner, tmp_path: Path) -> None:
+    result = runner.invoke(
+        app, ["export", "--db", str(tmp_path / "nonexistent.db"), "--out", str(tmp_path / "out.jsonl")]
+    )
+    assert result.exit_code == 1
+    # Should print an error message, not a traceback
+    assert "database" in result.output.lower() or "database" in (result.stderr or "").lower()

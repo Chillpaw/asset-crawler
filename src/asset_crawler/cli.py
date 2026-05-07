@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import sqlite3
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -53,8 +54,10 @@ def crawl_cmd(
     product_type: Annotated[list[str] | None, typer.Option("--product-type")] = None,
 ) -> None:
     """Run a crawl for one site."""
-    if site != "pickles":
-        typer.echo(f"unknown site: {site}", err=True)
+    from asset_crawler.registry import available_sites as _available_sites
+    if site not in _available_sites():
+        avail = ", ".join(_available_sites())
+        typer.echo(f"unknown site: {site!r}. Available: {avail}", err=True)
         raise typer.Exit(code=2)
 
     try:
@@ -120,13 +123,17 @@ def export_cmd(
     format = format.lower()
     from asset_crawler.export import export_csv, export_jsonl
 
-    if format == "jsonl":
-        n = export_jsonl(db_path=db, out=out, since=since, site=site, no_raw=no_raw)
-    elif format == "csv":
-        n = export_csv(db_path=db, out=out, since=since, site=site)
-    else:
-        typer.echo(f"unknown format: {format}", err=True)
-        raise typer.Exit(code=2)
+    try:
+        if format == "jsonl":
+            n = export_jsonl(db_path=db, out=out, since=since, site=site, no_raw=no_raw)
+        elif format == "csv":
+            n = export_csv(db_path=db, out=out, since=since, site=site)
+        else:
+            typer.echo(f"unknown format: {format!r}", err=True)
+            raise typer.Exit(code=2)
+    except sqlite3.OperationalError as e:
+        typer.echo(f"Cannot open database: {e}", err=True)
+        raise typer.Exit(code=1) from e
     typer.echo(f"wrote {n} rows to {out}")
 
 
