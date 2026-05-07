@@ -30,6 +30,14 @@ The CLI is also installable as `crawler` once `uv sync` has run.
 - Tests use `httpx.MockTransport` for HTTP isolation; no real network in pytest.
 - Database schema lives in `schema.sql`; idempotent `CREATE TABLE IF NOT EXISTS` style.
 - Time is injected (`now: Callable[[], datetime]`) for testability.
+- `open_db` uses `isolation_level=None` (autocommit). Every DML commits immediately — do not write batch-commit logic on top of this connection. Explicit `conn.commit()` calls are no-ops.
+
+## Known v2 gaps
+
+- `items_skipped` is always 0: blank-description filtering happens in `api_record_to_listing` (returns `None`), which the harness never sees. Needs a skip-signal mechanism.
+- `pages_fetched` is always 0: harness iterates records, not pages.
+- `--since` accepts any string (no format validation in CLI).
+- Hard-stop conditions "3 consecutive non-retryable errors" and "degraded page size" not yet implemented.
 
 ## Spec & plan
 
