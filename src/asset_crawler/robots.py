@@ -41,8 +41,12 @@ def fetch_robots(
     if resp.status_code == 200:
         parser.parse(resp.text.splitlines())
         return RobotsCheck(source_url=robots_url, fetched_ok=True, parser=parser)
+    if resp.status_code in (401, 403):
+        # RFC 9309 §2.3.1.3: 401/403 → fully disallowed
+        parser.parse(["User-agent: *", "Disallow: /"])
+        return RobotsCheck(source_url=robots_url, fetched_ok=True, parser=parser)
     if 400 <= resp.status_code < 500:
-        # 4xx (incl. 404) → permissive per RFC 9309
+        # other 4xx (incl. 404) → permissive per RFC 9309
         parser.parse([])
         return RobotsCheck(source_url=robots_url, fetched_ok=True, parser=parser)
     # 5xx → permissive but record failure

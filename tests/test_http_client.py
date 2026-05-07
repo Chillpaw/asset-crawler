@@ -93,8 +93,8 @@ def test_html_when_json_expected_hard_stops() -> None:
         client.get_json("https://example.com/api")
 
 
-def test_500_retries_but_408_hard_stops() -> None:
-    # 503 retried; 408 (request timeout) is non-retryable in our policy
+def test_408_hard_stops() -> None:
+    # 408 (request timeout) is non-retryable in our policy
     def handler(req: httpx.Request) -> httpx.Response:
         return httpx.Response(408, text="timeout")
 

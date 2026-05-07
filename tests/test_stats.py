@@ -41,7 +41,10 @@ def test_counts_by_site(tmp_path: Path) -> None:
     db = tmp_path / "t.db"
     _seed(db)
     conn = open_db(db)
-    rows = list(counts_by_site(conn))
+    try:
+        rows = list(counts_by_site(conn))
+    finally:
+        conn.close()
     assert rows == [("pickles", 3)]
 
 
@@ -49,7 +52,10 @@ def test_counts_by_lob(tmp_path: Path) -> None:
     db = tmp_path / "t.db"
     _seed(db)
     conn = open_db(db)
-    rows = list(counts_by_lob(conn))
+    try:
+        rows = list(counts_by_lob(conn))
+    finally:
+        conn.close()
     assert ("Salvage stock", 2) in rows
     assert ("Industrial", 1) in rows
 
@@ -58,7 +64,10 @@ def test_counts_by_product_type(tmp_path: Path) -> None:
     db = tmp_path / "t.db"
     _seed(db)
     conn = open_db(db)
-    rows = list(counts_by_product_type(conn))
+    try:
+        rows = list(counts_by_product_type(conn))
+    finally:
+        conn.close()
     assert ("Trucks", 1) in rows
 
 
@@ -66,7 +75,10 @@ def test_recent_ingest(tmp_path: Path) -> None:
     db = tmp_path / "t.db"
     _seed(db)
     conn = open_db(db)
-    rows = list(recent_ingest_by_day(conn, days=7))
+    try:
+        rows = list(recent_ingest_by_day(conn, days=7))
+    finally:
+        conn.close()
     assert rows[0][0] == "2026-05-04"
     assert rows[0][1] == 3
 

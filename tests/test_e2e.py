@@ -49,7 +49,10 @@ def test_full_flow_crawl_export_stats_runs(
 
     # And the underlying DB has the right shape
     conn = sqlite3.connect(db)
-    n_listings = conn.execute("SELECT COUNT(*) FROM listings").fetchone()[0]
-    n_runs = conn.execute("SELECT COUNT(*) FROM crawl_runs").fetchone()[0]
+    try:
+        n_listings = conn.execute("SELECT COUNT(*) FROM listings").fetchone()[0]
+        n_runs = conn.execute("SELECT COUNT(*) FROM crawl_runs").fetchone()[0]
+    finally:
+        conn.close()
     assert n_listings == 2
     assert n_runs == 1

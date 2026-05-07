@@ -45,6 +45,18 @@ def test_fetch_robots_5xx_returns_permissive_with_flag() -> None:
     assert is_allowed(robots, "/anything", user_agent="asset-crawler") is True
 
 
+def test_fetch_robots_401_returns_fully_disallowed() -> None:
+    robots = fetch_robots("https://example.com", transport=_transport("", status=401))
+    assert robots.fetched_ok is True
+    assert is_allowed(robots, "/", user_agent="asset-crawler") is False
+
+
+def test_fetch_robots_403_returns_fully_disallowed() -> None:
+    robots = fetch_robots("https://example.com", transport=_transport("", status=403))
+    assert robots.fetched_ok is True
+    assert is_allowed(robots, "/", user_agent="asset-crawler") is False
+
+
 def test_fetch_robots_connection_error_returns_permissive() -> None:
     def handler(req: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("simulated dns/connect failure")

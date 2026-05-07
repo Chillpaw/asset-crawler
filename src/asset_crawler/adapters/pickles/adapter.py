@@ -23,6 +23,8 @@ class PicklesAdapter:
         filters: PicklesFilters | None = None,
         page_size: int = DEFAULT_PAGE_SIZE,
     ) -> None:
+        if page_size <= 0:
+            raise ValueError(f"page_size must be > 0, got {page_size}")
         self._client = client
         self._filters = filters
         self._page_size = page_size

@@ -28,7 +28,7 @@ def _version_callback(value: bool) -> None:
 
 @app.callback()
 def _root(
-    version: Annotated[bool, typer.Option("--version", callback=_version_callback)] = False,
+    version: Annotated[bool, typer.Option("--version", callback=_version_callback, is_eager=True)] = False,
     verbose: Annotated[bool, typer.Option("--verbose", "-v")] = False,
 ) -> None:
     logging.basicConfig(
@@ -112,7 +112,7 @@ def crawl_cmd(
 
 @app.command("export")
 def export_cmd(
-    format: Annotated[str, typer.Option("--format", help="jsonl|csv")] = "jsonl",
+    out_format: Annotated[str, typer.Option("--format", help="jsonl|csv")] = "jsonl",
     out: Annotated[Path, typer.Option("--out")] = Path("./export.jsonl"),
     db: Annotated[Path, typer.Option("--db")] = Path("./asset-crawler.db"),
     since: Annotated[str | None, typer.Option("--since", help="YYYY-MM-DD")] = None,
@@ -120,19 +120,22 @@ def export_cmd(
     no_raw: Annotated[bool, typer.Option("--no-raw")] = False,
 ) -> None:
     """Export listings to JSONL or CSV."""
-    format = format.lower()
+    out_format = out_format.lower()
     from asset_crawler.export import export_csv, export_jsonl
 
     try:
-        if format == "jsonl":
+        if out_format == "jsonl":
             n = export_jsonl(db_path=db, out=out, since=since, site=site, no_raw=no_raw)
-        elif format == "csv":
+        elif out_format == "csv":
             n = export_csv(db_path=db, out=out, since=since, site=site)
         else:
-            typer.echo(f"unknown format: {format!r}", err=True)
+            typer.echo(f"unknown format: {out_format!r}", err=True)
             raise typer.Exit(code=2)
     except sqlite3.OperationalError as e:
         typer.echo(f"Cannot open database: {e}", err=True)
+        raise typer.Exit(code=1) from e
+    except ValueError as e:
+        typer.echo(f"Export failed: {e}", err=True)
         raise typer.Exit(code=1) from e
     typer.echo(f"wrote {n} rows to {out}")
 

@@ -40,7 +40,16 @@ def search_page(
             params["$filter"] = expr
 
     body = client.get_json(SEARCH_URL, params=params)
+    value = body.get("value")
+    if value is None:
+        records: list[dict[str, Any]] = []
+    elif not isinstance(value, list):
+        raise ValueError(
+            f"OData response field 'value' expected list, got {type(value).__name__!r}"
+        )
+    else:
+        records = value
     return PicklesPage(
-        records=list(body.get("value", [])),
+        records=records,
         next_link=body.get("@odata.nextLink"),
     )

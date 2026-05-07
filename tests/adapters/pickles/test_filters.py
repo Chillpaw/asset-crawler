@@ -34,3 +34,16 @@ def test_to_dict_for_audit() -> None:
     }
     empty = PicklesFilters()
     assert empty.to_dict() is None  # empty filter audited as NULL
+
+
+def test_single_quote_escaped_in_filter() -> None:
+    f = PicklesFilters(line_of_business=["O'Reilly"])
+    assert f.to_odata_filter() == "(itemLoB eq 'O''Reilly')"
+
+
+def test_parse_cli_maps_args() -> None:
+    from asset_crawler.adapters.pickles.filters import parse_cli
+    assert parse_cli(lob=["salvage"], product_type=["Trucks"]) == PicklesFilters(
+        line_of_business=["salvage"], product_types=["Trucks"]
+    )
+    assert parse_cli(lob=None, product_type=None) == PicklesFilters()

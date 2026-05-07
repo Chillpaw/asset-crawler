@@ -18,11 +18,13 @@ def resolve_contact() -> str:
     raw = os.environ.get("ASSET_CRAWLER_CONTACT")
     if raw is None:
         raw = _DEFAULT_CONTACT
-    elif not raw.strip():
-        raise ContactNotResolved(
-            "ASSET_CRAWLER_CONTACT is set but empty. "
-            "Provide a contact URL or email, or unset the variable."
-        )
+    else:
+        raw = raw.strip()
+        if not raw:
+            raise ContactNotResolved(
+                "ASSET_CRAWLER_CONTACT is set but empty. "
+                "Provide a contact URL or email, or unset the variable."
+            )
     if not _URL_RE.match(raw) and not _EMAIL_RE.match(raw):
         raise ContactNotResolved(
             f"ASSET_CRAWLER_CONTACT={raw!r} is not a URL or email. "
