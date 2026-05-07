@@ -117,6 +117,7 @@ def export_cmd(
     no_raw: Annotated[bool, typer.Option("--no-raw")] = False,
 ) -> None:
     """Export listings to JSONL or CSV."""
+    format = format.lower()
     from asset_crawler.export import export_csv, export_jsonl
 
     if format == "jsonl":

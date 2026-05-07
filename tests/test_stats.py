@@ -79,3 +79,27 @@ def test_stats_cli(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
     assert "pickles" in result.stdout
     assert "Salvage stock" in result.stdout
+
+
+def test_counts_by_lob_excludes_empty_categories(tmp_path: Path) -> None:
+    db = tmp_path / "t.db"
+    conn = open_db(db)
+    upsert_listing(
+        conn,
+        ListingRecord(
+            source_site="pickles", source_listing_id="empty",
+            description="no category", source_categories=[],
+            source_url=None, raw_payload={},
+        ),
+        datetime(2026, 5, 4, tzinfo=UTC),
+    )
+    conn.commit()
+    conn.close()
+
+    conn2 = open_db(db)
+    try:
+        rows = list(counts_by_lob(conn2))
+        lobs = [lob for lob, _ in rows]
+        assert None not in lobs
+    finally:
+        conn2.close()
