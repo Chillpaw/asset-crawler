@@ -25,16 +25,14 @@ def test_full_record_maps_correctly() -> None:
     assert rec.source_categories == ["Salvage stock", "Trucks", "Truck"]
 
 
-def test_lob_label_falls_back_to_raw_when_unmatched(caplog) -> None:
+def test_lob_label_falls_back_to_raw_when_unmatched() -> None:
     raw = _base() | {
         "itemLoB": "weirdlob",
         "lineOfBusinessUrls": ["salvage"],
         "lineOfBusinesses": ["Salvage stock"],
     }
-    with caplog.at_level("WARNING"):
-        rec = api_record_to_listing(raw)
+    rec = api_record_to_listing(raw)
     assert rec.source_categories[0] == "weirdlob"
-    assert any("weirdlob" in m for m in caplog.messages)
 
 
 def test_empty_intermediate_fields_dropped() -> None:

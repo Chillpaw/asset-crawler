@@ -21,7 +21,7 @@ def _client(handler) -> PoliteClient:
 
 
 def test_iter_listings_paginates_and_yields_records() -> None:
-    # Page 1: 2 records, has next_link. Page 2: 1 new record, no next_link.
+    # Page 1: 2 records (a full page at page_size=2). Page 2: 1 record (partial -> stop).
     page1 = dict(PAGE)
     page2 = {
         "@odata.nextLink": None,
@@ -45,7 +45,7 @@ def test_iter_listings_paginates_and_yields_records() -> None:
         return httpx.Response(200, json=page1 if state["calls"] == 1 else page2)
 
     with _client(handler) as client:
-        adapter = PicklesAdapter(client=client, filters=None)
+        adapter = PicklesAdapter(client=client, filters=None, page_size=2)
         records = list(adapter.iter_listings())
 
     assert state["calls"] == 2
@@ -73,27 +73,6 @@ def test_iter_listings_skips_blank_descriptions() -> None:
         records = list(adapter.iter_listings())
     assert len(records) == 1
     assert records[0].source_listing_id == "00000000-0000-0000-0000-000000000002"
-
-
-def test_iter_listings_logs_overlap_but_continues(caplog) -> None:
-    # Page 2's lowest assetId equals page 1's highest -> overlap warning.
-    overlap_page = {
-        "@odata.nextLink": None,
-        "value": [PAGE["value"][1]],  # same assetId as page1's max
-    }
-    state = {"calls": 0}
-
-    def handler(req: httpx.Request) -> httpx.Response:
-        state["calls"] += 1
-        return httpx.Response(200, json=PAGE if state["calls"] == 1 else overlap_page)
-
-    with _client(handler) as client:
-        adapter = PicklesAdapter(client=client, filters=None)
-        with caplog.at_level("WARNING"):
-            records = list(adapter.iter_listings())
-
-    assert any("overlap" in m.lower() for m in caplog.messages)
-    assert len(records) == 3  # 2 from page1, 1 from overlap page (dedup at harness)
 
 
 def test_site_name_constant() -> None:

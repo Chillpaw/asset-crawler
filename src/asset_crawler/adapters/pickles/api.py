@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import urllib.parse
 from dataclasses import dataclass
 from typing import Any
 
@@ -32,14 +33,22 @@ def search_page(
     params: dict[str, str | int] = {
         "$top": top,
         "$skip": skip,
-        "$orderby": "assetId asc",
+        # Azure Cognitive Search backend only allows $orderby on indexed-sortable fields;
+        # 'assetId' is not one. 'productBidEnd' is monotonic (auctions end forward in time)
+        # but ~90% of items share an end time, so 'titleSort' is a required tiebreaker.
+        "$orderby": "productBidEnd asc, titleSort asc",
     }
     if filters is not None:
         expr = filters.to_odata_filter()
         if expr is not None:
             params["$filter"] = expr
 
-    body = client.get_json(SEARCH_URL, params=params)
+    # httpx percent-encodes '$' → '%24' by default; OData requires literal '$'.
+    qs = urllib.parse.urlencode(
+        params,
+        quote_via=lambda s, safe, enc, err: urllib.parse.quote(s, safe="$"),
+    )
+    body = client.get_json(f"{SEARCH_URL}?{qs}")
     value = body.get("value")
     if value is None:
         records: list[dict[str, Any]] = []

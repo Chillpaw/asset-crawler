@@ -10,7 +10,8 @@
       "productType": {"title": "Trucks"},
       "assetType": "Truck",
       "eLotId": null,
-      "lotNumber": "104"
+      "lotNumber": "104",
+      "productBidEnd": "2026-05-20T05:00:00Z"
     },
     {
       "assetId": "00000000-0000-0000-0000-000000000002",
@@ -21,7 +22,8 @@
       "productType": {"title": "Trucks"},
       "assetType": "Truck",
       "eLotId": "ABC-77",
-      "lotNumber": "105"
+      "lotNumber": "105",
+      "productBidEnd": "2026-05-20T07:00:00Z"
     }
   ]
 }

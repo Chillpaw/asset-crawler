@@ -225,3 +225,7 @@ asset-crawler.db
 *.db-wal
 *.db-shm
 *.db-journal
+
+# Exports
+*.jsonl
+*.csv

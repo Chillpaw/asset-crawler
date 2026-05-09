@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from asset_crawler.adapters.pickles.url import build_source_url
 from asset_crawler.types import ListingRecord
-
-log = logging.getLogger(__name__)
 
 SITE = "pickles"
 
@@ -37,16 +34,17 @@ def api_record_to_listing(record: dict[str, Any]) -> ListingRecord | None:
 
 
 def _resolve_lob_label(record: dict[str, Any]) -> str:
+    # `lineOfBusinesses` is the list of secondary LoBs an item is cross-listed
+    # under, not a slug→label table. So `itemLoB` (the primary slug) often
+    # isn't present. When it is, use the parallel label; otherwise fall back
+    # to the slug verbatim — consistent with the "categories stored verbatim
+    # from each site" policy.
     item_lob = record.get("itemLoB", "")
     urls = record.get("lineOfBusinessUrls") or []
     labels = record.get("lineOfBusinesses") or []
     for i, url in enumerate(urls):
         if url == item_lob and i < len(labels):
             return labels[i]
-    log.warning(
-        "lob_label fallback: itemLoB=%r not found in lineOfBusinessUrls=%r",
-        item_lob, urls,
-    )
     return item_lob
 
 

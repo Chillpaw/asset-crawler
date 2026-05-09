@@ -35,7 +35,7 @@ def test_search_page_returns_records_and_next_link() -> None:
     assert page.next_link is not None
     assert seen_params[0]["$top"] == "50"
     assert seen_params[0]["$skip"] == "0"
-    assert seen_params[0]["$orderby"] == "assetId asc"
+    assert seen_params[0]["$orderby"] == "productBidEnd asc, titleSort asc"
     assert "$filter" not in seen_params[0]
 
 

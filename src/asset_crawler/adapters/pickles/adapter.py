@@ -31,35 +31,24 @@ class PicklesAdapter:
 
     def iter_listings(self) -> Iterator[ListingRecord]:
         skip = 0
-        prev_max_asset_id: str | None = None
-
         while True:
             page = search_page(
                 self._client, filters=self._filters, skip=skip, top=self._page_size
             )
             log.info(
-                "pickles page: skip=%d, returned=%d, has_next=%s",
-                skip, len(page.records), page.next_link is not None,
+                "pickles page: skip=%d, returned=%d", skip, len(page.records),
             )
 
             if not page.records:
                 return
-
-            page_asset_ids = [r["assetId"] for r in page.records]
-            min_id = min(page_asset_ids)
-            max_id = max(page_asset_ids)
-            if prev_max_asset_id is not None and min_id <= prev_max_asset_id:
-                log.warning(
-                    "pickles page overlap: prev_max=%s, this_min=%s — dedup will absorb",
-                    prev_max_asset_id, min_id,
-                )
-            prev_max_asset_id = max_id
 
             for raw in page.records:
                 rec = api_record_to_listing(raw)
                 if rec is not None:
                     yield rec
 
-            if not page.next_link:
+            # Pickles' search API never sets @odata.nextLink. A short page
+            # signals end-of-data. (Cursor support probed and confirmed absent.)
+            if len(page.records) < self._page_size:
                 return
             skip += self._page_size
