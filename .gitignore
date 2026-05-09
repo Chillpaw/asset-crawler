@@ -216,3 +216,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local Claude Code state
+.claude/
+
+# Local SQLite produced by the crawler
+asset-crawler.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+# Exports
+*.jsonl
+*.csv

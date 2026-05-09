@@ -1,0 +1,29 @@
+{
+  "@odata.nextLink": "https://www.pickles.com.au/api-website/buyer/ms-web-asset-search/v2/api/product/public/search?$skip=50&$top=50&$orderby=assetId%20asc",
+  "value": [
+    {
+      "assetId": "00000000-0000-0000-0000-000000000001",
+      "description": "2018 Toyota Hilux SR 4x4 dual cab — engine no compression",
+      "itemLoB": "salvage",
+      "lineOfBusinessUrls": ["salvage", "industrial"],
+      "lineOfBusinesses": ["Salvage stock", "Industrial"],
+      "productType": {"title": "Trucks"},
+      "assetType": "Truck",
+      "eLotId": null,
+      "lotNumber": "104",
+      "productBidEnd": "2026-05-20T05:00:00Z"
+    },
+    {
+      "assetId": "00000000-0000-0000-0000-000000000002",
+      "description": "2014 Hino 300 Series 616 IFS — runs and drives",
+      "itemLoB": "salvage",
+      "lineOfBusinessUrls": ["salvage"],
+      "lineOfBusinesses": ["Salvage stock"],
+      "productType": {"title": "Trucks"},
+      "assetType": "Truck",
+      "eLotId": "ABC-77",
+      "lotNumber": "105",
+      "productBidEnd": "2026-05-20T07:00:00Z"
+    }
+  ]
+}

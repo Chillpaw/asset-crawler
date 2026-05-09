@@ -1,0 +1,61 @@
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass
+from urllib.parse import urlsplit, urlunsplit
+from urllib.robotparser import RobotFileParser
+
+import httpx
+
+log = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class RobotsCheck:
+    """Frozen wrapper around a parsed robots.txt result. The `parser` field is
+    internally mutable (stdlib type); treat it as read-only after construction."""
+    source_url: str
+    fetched_ok: bool
+    parser: RobotFileParser
+
+
+def fetch_robots(
+    base_url: str,
+    *,
+    transport: httpx.BaseTransport | None = None,
+    timeout_s: float = 10.0,
+) -> RobotsCheck:
+    """Fetch and parse robots.txt. Missing or 5xx responses default to permissive
+    (per-line industry convention) but the result records `fetched_ok=False`."""
+    parts = urlsplit(base_url)
+    robots_url = urlunsplit((parts.scheme, parts.netloc, "/robots.txt", "", ""))
+    parser = RobotFileParser()
+    try:
+        with httpx.Client(transport=transport, timeout=timeout_s) as client:
+            resp = client.get(robots_url)
+    except httpx.HTTPError as e:
+        log.warning("could not fetch %s: %s; treating as permissive", robots_url, e)
+        parser.parse([])
+        return RobotsCheck(source_url=robots_url, fetched_ok=False, parser=parser)
+
+    if resp.status_code == 200:
+        parser.parse(resp.text.splitlines())
+        return RobotsCheck(source_url=robots_url, fetched_ok=True, parser=parser)
+    if resp.status_code in (401, 403):
+        # RFC 9309 §2.3.1.3: 401/403 → fully disallowed
+        parser.parse(["User-agent: *", "Disallow: /"])
+        return RobotsCheck(source_url=robots_url, fetched_ok=True, parser=parser)
+    if 400 <= resp.status_code < 500:
+        # other 4xx (incl. 404) → permissive per RFC 9309
+        parser.parse([])
+        return RobotsCheck(source_url=robots_url, fetched_ok=True, parser=parser)
+    # 5xx → permissive but record failure
+    parser.parse([])
+    return RobotsCheck(source_url=robots_url, fetched_ok=False, parser=parser)
+
+
+def is_allowed(robots: RobotsCheck, path: str, *, user_agent: str) -> bool:
+    """Per-path robots check. Inspect `robots.fetched_ok` separately for fetch
+    confidence — a False there means the answer reflects the permissive default,
+    not a real robots.txt."""
+    return robots.parser.can_fetch(user_agent, path)
