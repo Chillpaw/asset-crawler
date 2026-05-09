@@ -32,51 +32,111 @@ The database has two tables:
 
 ## Usage
 
-### Crawl
+The CLI exposes four subcommands: `crawl`, `export`, `stats`, `runs`. Run `uv run crawler --help` or `uv run crawler <command> --help` for the authoritative option list.
+
+### Global flags
+
+These apply to every subcommand and must be placed **before** the subcommand:
+
+| Flag | Description |
+|---|---|
+| `--verbose`, `-v` | Bump log level from INFO to DEBUG. Useful for inspecting page-by-page progress and HTTP details. |
+| `--version` | Print the installed version and exit. |
 
 ```bash
-# Crawl all Pickles listings (requires robots.txt override — see note below)
+uv run crawler --verbose crawl pickles --acknowledge-robots-disallowed
+uv run crawler --version
+```
+
+### Crawl
+
+```
+crawler crawl <site> [--db PATH] [--lob TEXT]... [--product-type TEXT]...
+                     [--acknowledge-robots-disallowed]
+```
+
+Fetches listings from the given site, deduplicates against the local DB, and records a row in `crawl_runs`. Site is positional and required; only `pickles` ships in v1.
+
+| Option | Default | Description |
+|---|---|---|
+| `--db` | `./asset-crawler.db` | SQLite path. Created if it doesn't exist. |
+| `--lob` | (none) | Filter by line of business. Repeat for multiple (OR-combined). Pickles uses URL slugs, e.g. `salvage`, `trucks-machinery-earthmoving`. |
+| `--product-type` | (none) | Filter by product type label. Repeat for multiple (OR-combined). Pickles uses display titles, e.g. `Cars`, `Forklifts`. |
+| `--acknowledge-robots-disallowed` | off | Required override; see note below. |
+
+```bash
+# Full Pickles crawl (~12k listings, ~12-20 min at the default polite delay)
 uv run crawler crawl pickles --acknowledge-robots-disallowed
 
-# Filter to a specific line of business or product type
+# Filter to one line of business and product type
 uv run crawler crawl pickles --acknowledge-robots-disallowed \
-  --lob "Industrial & Construction" \
-  --product-type "Excavators"
+  --lob salvage --product-type Cars
 
-# Multiple values for the same filter (OR'd together)
+# Multiple filter values are OR'd together
 uv run crawler crawl pickles --acknowledge-robots-disallowed \
-  --lob "Industrial & Construction" --lob "Marine"
+  --lob salvage --lob trucks-machinery-earthmoving
 
-# Write to a custom database location
+# Use a custom database location
 uv run crawler crawl pickles --acknowledge-robots-disallowed --db ~/data/pickles.db
 ```
 
-**robots.txt note:** Pickles disallows the search API path in `robots.txt`. The crawler checks this by default and refuses to run unless you pass `--acknowledge-robots-disallowed`. This flag is your explicit acknowledgement that you accept responsibility for the crawl. The acknowledgement is logged to `crawl_runs.error_message` for auditing.
+On exit the command prints a one-line summary:
 
-**Rate:** Single concurrency, 3–5 s jittered inter-request delay, identifiable `User-Agent`. Hard stops on HTTP 403/429/503.
+```
+run <uuid> status=ok seen=11713 new=11713 dup=0 skipped=0
+```
 
-**Contact header:** The crawler includes a contact URL or email in its `User-Agent` string. Set the `ASSET_CRAWLER_CONTACT` environment variable to override the default:
+`status` is one of `ok` / `failed` / `aborted`. The exit code is `0` for `ok`, `1` for `failed`, `2` for usage errors (unknown site, missing contact), `3` if robots is disallowed and the override flag was not set.
+
+**robots.txt note.** Pickles disallows the search API path in `robots.txt`. The crawler refuses to run unless `--acknowledge-robots-disallowed` is passed. This is your explicit acknowledgement that you accept responsibility for the crawl. The fact that the override was used is logged to stderr and recorded against the run.
+
+**Politeness.** Single concurrency, 3–5 s jittered inter-request delay, identifiable `User-Agent`. Retries with exponential backoff on `429`/`503`; hard stop on `403` or HTML responses to JSON endpoints (typical Cloudflare challenge signature).
+
+**Contact header.** The `User-Agent` includes a contact URL or email. Override via env var:
 
 ```bash
 export ASSET_CRAWLER_CONTACT="https://example.com/contact"
 uv run crawler crawl pickles --acknowledge-robots-disallowed
 ```
 
+If `ASSET_CRAWLER_CONTACT` is set but empty, or doesn't look like a URL/email, the crawler exits before any HTTP traffic.
+
 ### Export
 
+```
+crawler export [--format jsonl|csv] [--out PATH] [--db PATH]
+               [--site TEXT] [--since YYYY-MM-DD] [--no-raw]
+```
+
+Streams the contents of the `listings` table to a file. Read-only against the DB; safe to run while a crawl is in progress.
+
+| Option | Default | Description |
+|---|---|---|
+| `--format` | `jsonl` | Output format: `jsonl` (one JSON object per line) or `csv`. |
+| `--out` | `./export.<format>` | Output path. Default extension matches `--format` (`./export.jsonl` or `./export.csv`). |
+| `--db` | `./asset-crawler.db` | SQLite path. |
+| `--site` | (all sites) | Only export listings from this `source_site`. |
+| `--since` | (no filter) | Only export listings with `first_seen_at >= <date>`. ISO date, e.g. `2026-01-01`. |
+| `--no-raw` | off | Omit `raw_payload` from JSONL output. CSV never includes `raw_payload`. |
+
 ```bash
-# JSONL (default) — one JSON object per line
+# Default: JSONL to ./export.jsonl
+uv run crawler export
+
+# CSV (lands at ./export.csv automatically)
+uv run crawler export --format csv
+
+# Custom path
 uv run crawler export --out listings.jsonl
 
-# CSV
-uv run crawler export --format csv --out listings.csv
-
-# Filter by site or date
+# Only Pickles listings first seen on or after 2026-01-01
 uv run crawler export --site pickles --since 2026-01-01 --out recent.jsonl
 
-# Omit the raw API payload (smaller output)
-uv run crawler export --no-raw --out listings.jsonl
+# Smaller JSONL (drops raw_payload)
+uv run crawler export --no-raw --out slim.jsonl
 ```
+
+Output is deterministic: sorted by `source_site` then `source_listing_id`. JSONL keys are alphabetical within each object.
 
 **JSONL fields:**
 
@@ -91,33 +151,62 @@ uv run crawler export --no-raw --out listings.jsonl
 | `last_seen_at` | ISO 8601 | When last seen on a re-crawl |
 | `raw_payload` | object | Full API response object (omitted with `--no-raw`) |
 
-Output is deterministic: sorted by `source_site` then `source_listing_id`, keys alphabetical.
+**CSV fields:** same set minus `raw_payload`. `source_categories` is rendered as the JSON-encoded array string. `source_url` is empty string when null.
+
+The command prints `wrote <N> rows to <path>` on success. Exit code `1` if the database can't be opened or if a row's stored JSON is malformed; `2` for an unknown `--format`.
 
 ### Stats
 
-Print a breakdown of what's in the database:
+```
+crawler stats [--db PATH]
+```
+
+Prints four sections of coverage queries against the listings DB:
+
+- **By site** — total listings per `source_site`.
+- **By LoB (top 20)** — counts grouped by `source_categories[0]` (the line of business).
+- **By product type (top 20)** — counts grouped by `source_categories[1]`.
+- **Recent ingest (last 14 days)** — daily counts of `first_seen_at`, descending.
 
 ```bash
 uv run crawler stats
+uv run crawler stats --db ~/data/pickles.db
 ```
 
-Shows total listings, counts by line of business, and counts by product type.
+Read-only and fast (the underlying queries are `GROUP BY` over the indexed columns).
 
 ### Runs
 
-Show the history of crawl runs:
+```
+crawler runs [--db PATH] [--site TEXT] [--limit N]
+```
+
+Lists recent rows from `crawl_runs`, most recent first.
+
+| Option | Default | Description |
+|---|---|---|
+| `--db` | `./asset-crawler.db` | SQLite path. |
+| `--site` | (all sites) | Filter to one `source_site`. |
+| `--limit` | `20` | Max rows to display. |
 
 ```bash
 uv run crawler runs
-
-# Filter to one site, increase limit
 uv run crawler runs --site pickles --limit 50
 ```
+
+Each line shows: `started_at  source_site  status  new=N dup=N skipped=N run_id=<uuid>`. `status` is one of:
+
+| Status | Meaning |
+|---|---|
+| `running` | Currently in progress (or crashed mid-run before being marked stale). |
+| `ok` | Completed without error. |
+| `failed` | Hit a hard stop or exception; check stderr from the run. |
+| `aborted` | Detected on the next startup as a stale `running` row older than 1 hour. |
 
 ## Development
 
 ```bash
-uv run pytest           # full test suite (93 tests, no network)
+uv run pytest           # full test suite (no network)
 uv run pytest tests/test_harness.py -v   # single file
 uv run ruff check .     # lint
 uv run mypy src         # type check

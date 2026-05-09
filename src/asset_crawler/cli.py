@@ -113,7 +113,10 @@ def crawl_cmd(
 @app.command("export")
 def export_cmd(
     out_format: Annotated[str, typer.Option("--format", help="jsonl|csv")] = "jsonl",
-    out: Annotated[Path, typer.Option("--out")] = Path("./export.jsonl"),
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", help="Output path; defaults to ./export.<format>"),
+    ] = None,
     db: Annotated[Path, typer.Option("--db")] = Path("./asset-crawler.db"),
     since: Annotated[str | None, typer.Option("--since", help="YYYY-MM-DD")] = None,
     site: Annotated[str | None, typer.Option("--site")] = None,
@@ -121,16 +124,19 @@ def export_cmd(
 ) -> None:
     """Export listings to JSONL or CSV."""
     out_format = out_format.lower()
+    if out_format not in {"jsonl", "csv"}:
+        typer.echo(f"unknown format: {out_format!r}", err=True)
+        raise typer.Exit(code=2)
+    if out is None:
+        out = Path(f"./export.{out_format}")
+
     from asset_crawler.export import export_csv, export_jsonl
 
     try:
         if out_format == "jsonl":
             n = export_jsonl(db_path=db, out=out, since=since, site=site, no_raw=no_raw)
-        elif out_format == "csv":
-            n = export_csv(db_path=db, out=out, since=since, site=site)
         else:
-            typer.echo(f"unknown format: {out_format!r}", err=True)
-            raise typer.Exit(code=2)
+            n = export_csv(db_path=db, out=out, since=since, site=site)
     except sqlite3.OperationalError as e:
         typer.echo(f"Cannot open database: {e}", err=True)
         raise typer.Exit(code=1) from e
